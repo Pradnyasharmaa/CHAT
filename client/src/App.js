@@ -7,8 +7,6 @@ import WelcomeScreen from './componenets/WelcomeScreen';
 import EnhancedMessage from './componenets/EnhancedMessage';
 import AiBotButton from './componenets/AiBotButton';
 import AIBot from './utils/aiBot';
-import { GiphyFetch } from '@giphy/js-fetch-api';
-import CameraWithFilters from './componenets/CameraWithFilters';
 
 
 
@@ -17,8 +15,9 @@ const App = () => {
   const [currentScreen, setCurrentScreen] = useState('welcome'); // Always start with welcome
 
   // User and chat states
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [otherUser, setOtherUser] = useState(null);
+  //const [isProcessing, setIsProcessing] = useState(false);
+  //const [otherUser, setOtherUser] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1); // New state for zoom level
   const [user, setUser] = useState(null);
   const [selectedChat, setSelectedChat] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,16 +29,27 @@ const App = () => {
   const [gifs, setGifs] = useState([]);
   const [gifSearchQuery, setGifSearchQuery] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState(null);
-  const [elements, setElements] = useState([]);
-  const [selectedElement, setSelectedElement] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  //const [elements, setElements] = useState([]);
+  //const [selectedElement, setSelectedElement] = useState(null);
+  //const [isDragging, setIsDragging] = useState(false);
+  //const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const workspaceRef = useRef(null);
+  const [isGameActive, setIsGameActive] = useState(false); // State to track if the game is active
 
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.1, 2)); // Limit zoom level to 2x
+  };
 
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 0.1, 1)); // Limit zoom level to 1x
+  };
   const socket = io('http://localhost:4000', {
     transports: ['websocket', 'polling'], // Specify the transports to use
 });
+
+  const [currentMovie, setCurrentMovie] = useState(null);
+  const [userGuess, setUserGuess] = useState('');
+  
 
 
   // Drawing states
@@ -49,7 +59,7 @@ const App = () => {
   const [currentDrawing, setCurrentDrawing] = useState([]);
   const [color, setColor] = useState('#3498db');
   const [brushSize, setBrushSize] = useState(5);
-  const [showCamera, setShowCamera] = useState(false); // New state
+  //const [showCamera, setShowCamera] = useState(false); // New state
 
   // Mock chats data
   const mockChats = [
@@ -62,24 +72,7 @@ const App = () => {
       timestamp: '2:30 PM',
       unread: 2
     },
-    { 
-      id: 2, 
-      name: 'Jane Smith', 
-      avatar: 'https://api.dicebear.com/6.x/avataaars/svg?seed=jane', 
-      lastMessage: '',
-      status: 'offline',
-      timestamp: '1:45 PM',
-      unread: 0
-    },
-    { 
-      id: 3, 
-      name: 'Mike Johnson', 
-      avatar: 'https://api.dicebear.com/6.x/avataaars/svg?seed=mike', 
-      lastMessage: '',
-      status: 'online',
-      timestamp: '12:15 PM',
-      unread: 1
-    },
+     
   ];
   
   // Canvas refs
@@ -171,55 +164,52 @@ const App = () => {
       }, [position, scale, rotation]);
       return (
         <Draggable
-          position={position}
-          onStart={() => setIsDragging(true)}
-          onDrag={handleDrag}
-          onStop={() => setIsDragging(false)}
+        position={position}
+        onStart={() => setIsDragging(true)}
+        onDrag={handleDrag}
+        onStop={() => setIsDragging(false)}
+      >
+        <div
+          className={`absolute cursor-move ${
+            selectedMessageId === message.id ? 'ring-2 ring-purple-500' : ''
+          }`}
+          style={{
+            transform: `rotate(${rotation}deg) scale(${scale * zoomLevel})`, // Apply zoom level
+            zIndex: selectedMessageId === message.id ? 10 : 1,
+          }}
+          onClick={() => setSelectedMessageId(message.id)}
         >
-          <div
-            className={`absolute cursor-move ${
-              selectedMessageId === message.id ? 'ring-2 ring-purple-500' : ''
-            }`}
-            style={{
-              transform: `rotate(${rotation}deg) scale(${scale})`,
-              zIndex: selectedMessageId === message.id ? 10 : 1,
-            }}
-            onClick={() => setSelectedMessageId(message.id)}
-          >
-            <div className="relative group">
-            {message.content.gifUrl ? ( // Check if the message has a GIF URL
-                <img src={message.content.gifUrl} alt="GIF" className="w-32 h-auto" /> // Render the GIF
-              ) : (
+          <div className="relative group">
+            {message.content.gifUrl ? (
+              <img src={message.content.gifUrl} alt="GIF" className="w-32 h-auto" />
+            ) : (
               <EnhancedMessage message={message.content} />
-              )}
-              
-              {selectedMessageId === message.id && (
-                <div className="absolute -top-10 left-0 flex gap-1 bg-gray-800/90 rounded-lg p-1">
-                  <button
-                    onClick={handleRotate}
-                    className="p-1 hover:bg-gray-700 rounded"
-                  >
-                    <RotateCw size={16} className="text-white" />
-                  </button>
-                  <button
-                    onClick={handleZoomIn}
-                    className="p-1 hover:bg-gray-700 rounded"
-                  >
-                    <ZoomIn size={16} className="text-white" />
-                  </button>
-                  <button
-                    onClick={handleZoomOut}
-                    className="p-1 hover:bg-gray-700 rounded"
-                  >
-                    <ZoomOut size={16} className="text-white" />
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
+            {selectedMessageId === message.id && (
+              <div className="absolute -top-10 left-0 flex gap-1 bg-gray-800/90 rounded-lg p-1">
+                <button onClick={handleRotate} className="p-1 hover:bg-gray-700 rounded">
+                  <RotateCw size={16} className="text-white" />
+                </button>
+                <button onClick={handleZoomIn} className="p-1 hover:bg-gray-700 rounded">
+                  <ZoomIn size={16} className="text-white" />
+                </button>
+                <button onClick={handleZoomOut} className="p-1 hover:bg-gray-700 rounded">
+                  <ZoomOut size={16} className="text-white" />
+                </button>
+              </div>
+            )}
           </div>
-        </Draggable>
-      );
-    };
+        </div>
+      </Draggable>
+    );
+  };
+  const startGame = () => {
+    console.log("Starting game..."); // Debug log
+    const gameMessage = AIBot.startGame();
+    console.log("Game message:", gameMessage); // Debug log
+    setMessages((prevMessages) => [...prevMessages, gameMessage]);
+    setIsGameActive(true);
+  };
   
     // Message position update functions
     const updateMessagePosition = (id, position) => {
@@ -249,33 +239,29 @@ const App = () => {
   // Message handling
   const handleSendMessage = () => {
     if (text.trim()) {
-      const newMessage = {
-        id: Date.now(),
-        type: 'enhanced',
-        content: isAiBotActive 
-          ? AIBot.enhanceMessage(text)
-          : {
-              text: text,
-              color: '#ffffff',
-              animation: 'fadeIn'
-            },
-        position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
-        rotation: 0,
-        scale: 1,
-      };
+        const newMessage = {
+            id: Date.now(),
+            type: isAiBotActive ? 'ai' : 'user', // Set type based on sender
+            content: isAiBotActive 
+                ? AIBot.enhanceMessage(text) // Ensure this returns a string
+                : {
+                    text: text,
+                    color: '#ffffff', // Optional: Add color if needed
+                    animation: 'fadeIn' // Optional: Add animation if needed
+                },
+            position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
+            rotation: 0,
+            scale: 1,
+        };
 
-      // Emit the message to the server
-      socket.emit('sendMessage', newMessage);
+        // Only emit the message, don't add it locally
+        socket.emit('sendMessage', newMessage);
 
-      // Optionally, add the message to the local state to display it immediately
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-
-      // Clear the input field and reset other states
-      setText('');
-      setShowEmojiPicker(false);
-      setShowGifPicker(false);
+        setText('');
+        setShowEmojiPicker(false);
+        setShowGifPicker(false);
     }
-  };
+};
 
   useEffect(() => {
     socket.on('receiveMessage', (message) => {
@@ -288,22 +274,25 @@ const App = () => {
       socket.off('receiveMessage');
     };
   }, []);
+  
 
   // GIF handling
-  const fetchGifs = async (query) => {
+  const fetchGifs = async (query) => { console.log(query)
     if (!query) return;
     try {
       const response = await fetch(
         `https://tenor.googleapis.com/v2/search?q=${query}&key=${tenorApiKey}&client_key=peepy_chat&limit=12`
       );
-  
+      console.log(response)
       // Check if the response is ok (status in the range 200-299)
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
   
       const data = await response.json();
+
       setGifs(data.results || []);
+      //console.log(data.results)//
     } catch (error) {
       console.error('Error fetching GIFs:', error);
     }
@@ -311,22 +300,21 @@ const App = () => {
 
   const handleGifSelect = (gifUrl) => {
     const newMessage = {
-      id: Date.now(),
-      type: 'enhanced',
-      content: {
-        text: '',
-        gifUrl: gifUrl,
-        color: '#ffffff',
-        animation: 'fadeIn'
-      },
-      position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
-      rotation: 0,
-      scale: 1,
+        id: Date.now(),
+        type: 'gif',
+        content: {
+            text: '',
+            gifUrl: gifUrl,
+        },
     };
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
-    setShowGifPicker(false);
-  };
 
+    // Emit the message to the server
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    
+    // Clear the GIFs and hide the GIF picker
+    setGifs([]); // Clear the GIFs
+    setShowGifPicker(false);
+};
   // Drawing functions
   const startDrawing = (e) => {
     if (!drawingMode || !ctxRef.current) return;
@@ -568,11 +556,20 @@ const App = () => {
             onMouseLeave={stopDrawing}
           />
           {messages.map((msg) => (
-          <div key={msg.id}>
-            <strong>{msg.content.text.startsWith('AI:') ? 'AI' : 'User'}:</strong> {msg.content.text}
+    <Draggable key={msg.id} defaultPosition={msg.position}>
+        <div className="absolute" style={{ color: msg.color, animation: `${msg.animation} 0.5s` }}>
+            {msg.type === 'gif' ? ( // Check if the message is a GIF
+                <img src={msg.content.gifUrl} alt="GIF" className="w-32 h-auto" /> // Render the selected GIF
+            ) : (
+                <div>
+                    <strong>{msg.type === 'ai' ? 'Pradnya' :''}:</strong> 
+                    <span>{typeof msg.content === 'string' ? msg.content : msg.content.text}</span>
+                </div>
+            )}
         </div>
-          ))}
-        </div>
+    </Draggable>
+))}
+</div>
 
         {/* Input Area */}
         <div className="absolute bottom-4 left-4 right-4">
@@ -632,6 +629,16 @@ const App = () => {
               >
                 <Image className="text-white" size={20} />
               </button>
+              {/* New Gamepad Button */}
+            <button
+              onClick={() => {
+                // Functionality to start the game can be added here
+                console.log("Gamepad clicked!"); // Placeholder for game start logic
+              }}
+              className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
+            >
+              <Gamepad className="text-white" size={20} />
+            </button>
               
               <button
                 onClick={() => setDrawingMode(!drawingMode)}

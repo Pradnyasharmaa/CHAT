@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import { SmilePlus, Brush, Image, Search, Phone, Video, Eraser, Gamepad, Bot, Wand2, X as XIcon,Plus, Minus, ZoomIn,ZoomOut,RotateCw,ArrowLeft} 
+import { SmilePlus,Text as TIcon,Camera, Brush, Image, Search, Phone, Video, Eraser, Gamepad, Bot, Wand2, X as XIcon,Plus, Minus, ZoomIn,ZoomOut,RotateCw,ArrowLeft} 
 from 'lucide-react';
 import { io } from 'socket.io-client';
 import WelcomeScreen from './componenets/WelcomeScreen';
 import EnhancedMessage from './componenets/EnhancedMessage';
 import AiBotButton from './componenets/AiBotButton';
 import AIBot from './utils/aiBot';
+
 
 
 
@@ -23,43 +24,42 @@ const App = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [isAiBotActive, setIsAiBotActive] = useState(true);
+  const [suggestions, setSuggestions] = useState([]); // State for suggestions
   const [text, setText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [gifs, setGifs] = useState([]);
   const [gifSearchQuery, setGifSearchQuery] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState(null);
-  //const [elements, setElements] = useState([]);
-  //const [selectedElement, setSelectedElement] = useState(null);
-  //const [isDragging, setIsDragging] = useState(false);
-  //const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [showTextOptions, setShowTextOptions] = useState(false);
+  const [textColor, setTextColor] = useState('#ffffff');
+  const [rotation, setRotation] = useState(0); // Rotation in degrees
+  const [textAnimation, setTextAnimation] = useState('none');
+  const [textFont, setTextFont] = useState('Arial');
   const workspaceRef = useRef(null);
-  const [isGameActive, setIsGameActive] = useState(false); // State to track if the game is active
+  const [isGameActive, setIsGameActive] = useState(false);
+const [currentMovie, setCurrentMovie] = useState(null);
+const [attempts, setAttempts] = useState(0);
+const [score, setScore] = useState(0);
+const [zoom, setZoom] = useState(1); // Zoom level (1 = 100%)
+const [gameMessage, setGameMessage] = useState('');
+ const animations = ['none', 'fade', 'bounce', 'zoom', 'slide', 'rotate'];
 
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.1, 2)); // Limit zoom level to 2x
-  };
+ // Example text colors
+ const colors = ['#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
 
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 0.1, 1)); // Limit zoom level to 1x
-  };
+  
   const socket = io('http://localhost:4000', {
     transports: ['websocket', 'polling'], // Specify the transports to use
 });
-
-  const [currentMovie, setCurrentMovie] = useState(null);
-  const [userGuess, setUserGuess] = useState('');
-  
-
-
-  // Drawing states
+// Drawing states
   const [drawingMode, setDrawingMode] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawings, setDrawings] = useState([]);
   const [currentDrawing, setCurrentDrawing] = useState([]);
   const [color, setColor] = useState('#3498db');
   const [brushSize, setBrushSize] = useState(5);
-  //const [showCamera, setShowCamera] = useState(false); // New state
+  const [uploadedImage, setUploadedImage] = useState(null);
 
   // Mock chats data
   const mockChats = [
@@ -74,6 +74,63 @@ const App = () => {
     },
      
   ];
+  const backgroundOptions = [
+    { name: 'Sunset Gradient', className: 'bg-gradient-1' },
+    { name: 'Ocean Blue Gradient', className: 'bg-gradient-2' },
+    { name: 'Sky Blue Gradient', className: 'bg-gradient-3' },
+    { name: 'Soft Peach Gradient', className: 'bg-gradient-4' },
+    { name: 'Animated Gradient', className: 'bg-animated' },
+];
+  const generateSuggestions = (input) => {
+    const allSuggestions = [
+        "Hello there!",
+        "How are you?",
+        "What's up buddy?",
+        "Have a great day!",
+        "Good to see you!",
+        "Let's chat!",
+        "How can I help you?",
+        "What do you think?",
+          "Hey there, superstar! ✨",
+          "Yo, what's cookin', good lookin'? 🍳",
+          "Howdy, partner! 🤠",
+          "Long time no chat—spill the tea! ☕",
+          "Oh hey! Did you miss me? 😏",
+          "What's shakin', bacon? 🥓",
+          "Ready to dive into some fun? 🏄",
+          "Tell me something I don't know! 🧐",
+          "Wassup, my favorite human? 🥳",
+          "Need advice, a joke, or a high-five? ✋",
+          "Feeling lucky? Let’s roll the dice! 🎲",
+          "Did you hear about the talking robot? Oh wait, that’s me! 🤖",
+          "Let’s make today epic! 🚀",
+          "You + Me = Chat magic! 🪄",
+          "hello there, my fabulous friend! 🌟",
+          "Feeling chatty? Me too! Let’s go! 🎉",
+          "Drop your questions like they’re hot! 🔥",
+          "What's your vibe today? Happy? Chill? Mischievous? 😏",
+          "I’ve got jokes, games, and good vibes. You in? 🎭",
+          "What’s the wildest thing on your mind right now? 🤯",
+          "Ask me anything—or just tell me how awesome I am! 😎",
+          "Can’t wait to hear what you’re thinking! 💭",
+          "Let’s make this convo legendary! 🌈",
+          "The fun police are here—time to chat! 🚔",
+          "What’s the scoop, jellybean? 🍦",
+          "Hit me with your best question! 🎯",
+          "Need a pep talk, a pun, or some pizza vibes? 🍕",
+        ];
+    return allSuggestions.filter(suggestion => suggestion.toLowerCase().includes(input.toLowerCase()));
+};
+const handleInputChange = (e) => {
+  const value = e.target.value;
+  setText(value);
+  if (value) {
+      const newSuggestions = generateSuggestions(value);
+      setSuggestions(newSuggestions);
+  } else {
+      setSuggestions([]); // Clear suggestions if input is empty
+  }
+};
   
   // Canvas refs
   const canvasRef = useRef(null);
@@ -101,23 +158,14 @@ const App = () => {
         setPosition({ x: data.x, y: data.y });
         updateMessagePosition(message.id, { x: data.x, y: data.y });
       };
-      const handleRotate = () => {
-        const newRotation = rotation + 45;
-        setRotation(newRotation);
-        updateMessageRotation(message.id, newRotation);
-      };
+      
+      const handleRotate = (angle) => {
+        setRotation((prevRotation) => prevRotation + angle);
+    };
 
-      const handleZoomIn = () => {
-        const newScaleIn = scale + 0.1;
-        setScale(newScaleIn);
-        updateMessageScale(message.id, newScaleIn);
-      };
-
-      const handleZoomOut = () => {
-        const newScaleOut = Math.max(0.5, scale - 0.1);
-        setScale(newScaleOut);
-        updateMessageScale(message.id, newScaleOut);
-      };
+    const handleZoom = (scale) => {
+        setZoom((prevZoom) => Math.max(0.1, prevZoom + scale)); // Prevent zooming out too much
+    };
 
       const handleKeyDown = (e) => {
         switch (e.key) {
@@ -210,6 +258,16 @@ const App = () => {
     setMessages((prevMessages) => [...prevMessages, gameMessage]);
     setIsGameActive(true);
   };
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImage(reader.result); // Set the uploaded image
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   
     // Message position update functions
     const updateMessagePosition = (id, position) => {
@@ -255,8 +313,7 @@ const App = () => {
         };
 
         // Only emit the message, don't add it locally
-        socket.emit('sendMessage', newMessage);
-
+        socket.emit('sendMessage', newMessage); 
         setText('');
         setShowEmojiPicker(false);
         setShowGifPicker(false);
@@ -297,7 +354,22 @@ const App = () => {
       console.error('Error fetching GIFs:', error);
     }
   };
-
+  const handleGuess = (guess) => {
+    if (AIBot.movieGame.checkGuess(guess, currentMovie)) {
+        const newScore = AIBot.movieGame.calculateScore(attempts, currentMovie.difficulty);
+        setScore(newScore);
+        setGameMessage(AIBot.generateGameMessage('correct', currentMovie, attempts, newScore).text);
+        setIsGameActive(false); // End the game
+    } else {
+        setAttempts(attempts + 1);
+        if (attempts < 4) {
+            setGameMessage(AIBot.generateGameMessage('wrong', currentMovie, attempts + 1).text);
+        } else {
+            setGameMessage(AIBot.generateGameMessage('gameOver', currentMovie).text);
+            setIsGameActive(false); // End the game
+        }
+    }
+};
   const handleGifSelect = (gifUrl) => {
     const newMessage = {
         id: Date.now(),
@@ -557,12 +629,19 @@ const App = () => {
           />
           {messages.map((msg) => (
     <Draggable key={msg.id} defaultPosition={msg.position}>
-        <div className="absolute" style={{ color: msg.color, animation: `${msg.animation} 0.5s` }}>
+        <div
+            className="absolute"
+            style={{
+                color: msg.type === 'user' ? msg.content.color : '#ffffff', // Use the message color for user messages, white for AI
+                animation: `${msg.content.animation} 0.5s`,
+                fontFamily: msg.content.font, // Apply the selected font
+            }}
+        >
             {msg.type === 'gif' ? ( // Check if the message is a GIF
                 <img src={msg.content.gifUrl} alt="GIF" className="w-32 h-auto" /> // Render the selected GIF
             ) : (
                 <div>
-                    <strong>{msg.type === 'ai' ? 'Pradnya' :''}:</strong> 
+                    <strong>{msg.type === 'ai' ? 'You' : ''}</strong>
                     <span>{typeof msg.content === 'string' ? msg.content : msg.content.text}</span>
                 </div>
             )}
@@ -570,140 +649,219 @@ const App = () => {
     </Draggable>
 ))}
 </div>
+{/* Input Area */}
+<div className="absolute bottom-4 left-4 right-4">
+  {isAiBotActive && (
+    <div className="mb-2 text-purple-300 text-sm flex items-center gap-2 animate-pulse">
+      <Bot size={10} />
+      <span></span>
+    </div>
+  )}
+  
+  {/* Brush Size and Color Selection */}
+  <div className="flex gap-2 mb-2">
+    <input
+      type="color"
+      value={color}
+      onChange={(e) => setColor(e.target.value)}
+      className="w-9 p-1 rounded"
+    />
+    <input
+      type="number"
+      value={brushSize}
+      onChange={(e) => setBrushSize(Math.max(1, e.target.value))}
+      className="w-10 p-1 rounded"
+      min="1"
+    />
+    <AiBotButton 
+        isActive={isAiBotActive} 
+        onClick={() => setIsAiBotActive(!isAiBotActive)}
+      />
+  </div>
 
-        {/* Input Area */}
-        <div className="absolute bottom-4 left-4 right-4">
-          {isAiBotActive && (
-            <div className="mb-2 text-purple-300 text-sm flex items-center gap-2 animate-pulse">
-              <Bot size={14} />
-              <span>AI Enhancement Active</span>
-            </div>
-          )}
-          {/* Brush Size and Color Selection */}
-          <div className="flex gap-2 mb-2">
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="p-1 rounded"
-            />
-            <input
-              type="number"
-              value={brushSize}
-              onChange={(e) => setBrushSize(Math.max(1, e.target.value))}
-              className="w-16 p-1 rounded"
-              min="1"
-            />
-          </div>
-
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                className="w-full bg-gray-800/50 text-white rounded-lg pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Type a message..."
-              />
-              
-              <button onClick={handleSendMessage}>Send</button>
-              
-              <AiBotButton 
-                isActive={isAiBotActive} 
-                onClick={() => setIsAiBotActive(!isAiBotActive)}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
-              >
-                <SmilePlus className="text-white" size={20} />
-              </button>
-
-              <button
-                onClick={() => setShowGifPicker(!showGifPicker)}
-                className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
-              >
-                <Image className="text-white" size={20} />
-              </button>
-              {/* New Gamepad Button */}
-            <button
-              onClick={() => {
-                // Functionality to start the game can be added here
-                console.log("Gamepad clicked!"); // Placeholder for game start logic
-              }}
-              className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
+  <div className="flex items-center gap-2">
+    <div className="flex-1 relative">
+    <input
+        type="text"
+        value={text}
+        onChange={(e) => handleInputChange(e)} // Updated to handle input change
+        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+        className="w-full bg-gray-800/50 text-white rounded-lg pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+        placeholder="Type a message..."
+      />
+      {suggestions.length > 0 && (
+        <ul className="absolute bg-gray-700 text-white rounded-lg mt-1 w-full">
+          {suggestions.map((suggestion, index) => (
+            <li
+              key={index}
+              onClick={() => setText(suggestion)}
+              className="p-2 hover:bg-gray-600 cursor-pointer"
             >
-              <Gamepad className="text-white" size={20} />
-            </button>
-              
+              {suggestion}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    {/* Buttons for Emoji, Camera, and GIF */}
+    <div className="flex gap-2">
+       {/* T Icon for text customization */}
+       <button
+          onClick={() => setShowTextOptions(!showTextOptions)}
+          className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
+        >
+          <TIcon className="text-white" size={15} />
+        </button>
+        <button
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
+        >
+          <SmilePlus className="text-white" size={15} />
+        </button>
+      {/* Camera Button for uploading images */}
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+        id="image-upload"
+      />
+      <label htmlFor="image-upload" className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30 cursor-pointer">
+        <Camera className="text-white" size={15} />
+      </label>
+      <button
+        onClick={() => setShowGifPicker(!showGifPicker)}
+        className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
+      >
+        <Image className="text-white" size={15} />
+      </button>
+      {/* New Gamepad Button */}
+      <button
+        onClick={() => {
+          // Functionality to start the game can be added here
+          console.log("Gamepad clicked!"); // Placeholder for game start logic
+        }}
+        className="p-3 bg-purple-500/20 rounded-lg hover:bg-purple-500/30"
+      >
+        <Gamepad className="text-white" size={15} />
+      </button>
+      <button
+        onClick={() => setDrawingMode(!drawingMode)}
+        className={`p-3 rounded-lg ${
+          drawingMode ? 'bg-purple-500' : 'bg-purple-500/20 hover:bg-purple-500/30'
+        }`}
+      >
+        <Brush className="text-white" size={15} />
+      </button>
+    </div>
+  </div>
+
+{/* Text Customization Options */}
+{showTextOptions && (
+        <div className="absolute bg-gray-800/90 p-4 rounded-lg">
+          <h3 className="text-white">Text Color</h3>
+          <div className="flex gap-2 mb-2">
+            {colors.map((color) => (
               <button
-                onClick={() => setDrawingMode(!drawingMode)}
-                className={`p-3 rounded-lg ${
-                  drawingMode ? 'bg-purple-500' : 'bg-purple-500/20 hover:bg-purple-500/30'
-                }`}
-              >
-                <Brush className="text-white" size={20} />
-              </button>
-            </div>
-          </div>
-
-          {/* Emoji Picker */}
-          {showEmojiPicker && (
-            <div className="absolute bottom-16 right-4 bg-gray-800/90 backdrop-blur-md p-4 rounded-lg">
-              <div className="grid grid-cols-5 gap-2">
-                {Object.values(AIBot.emojiSets).flat().map((emoji, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setText(text + emoji);
-                      setShowEmojiPicker(false);
-                    }}
-                    className="text-2xl hover:bg-white/10 p-2 rounded"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* GIF Picker */}
-          {showGifPicker && (
-            <div className="absolute bottom-16 right-4 bg-gray-800/90 backdrop-blur-md p-4 rounded-lg w-72">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-white font-semibold">Select a GIF</h3>
-                <button onClick={() => setShowGifPicker(false)} className="text-gray-400 hover:text-white">
-                  <XIcon size={18} />
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="Search GIFs..."
-                value={gifSearchQuery}
-                onChange={(e) => {
-                  setGifSearchQuery(e.target.value);
-                  fetchGifs(e.target.value);
-                }}
-                className="w-full bg-gray-700/50 text-white rounded-lg px-3 py-2 mb-3"
+                key={color}
+                onClick={() => setTextColor(color)}
+                style={{ backgroundColor: color }}
+                className="w-8 h-8 rounded-full"
               />
-              <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                {gifs.map((gif) => (
-                  <img
-                    key={gif.id}
-                    src={gif.media_formats.tinygif.url}
-                    alt={gif.content_description}
-                    className="w-full h-auto rounded cursor-pointer hover:opacity-80"
-                    onClick={() => handleGifSelect(gif.media_formats.gif.url)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
+            <h3 className="text-white">Text Animation</h3>
+          <select
+            value={textAnimation}
+            onChange={(e) => setTextAnimation(e.target.value)}
+            className="bg-gray-700 text-white rounded"
+          >
+            {animations.map((animation) => (
+              <option key={animation} value={animation}>
+                {animation}
+              </option>
+            ))}
+          </select>
+
+          <h3 className="text-white">Text Font</h3>
+          <select
+            value={textFont}
+            onChange={(e) => setTextFont(e.target.value)}
+            className="bg-gray-400 text-white rounded"
+          >
+            <option value="Arial">Arial</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Verdana">Verdana</option>
+          </select>
         </div>
+      )}
+{/* Emoji Picker */}
+  {showEmojiPicker && (
+    <div className="absolute bottom-16 right-4 bg-gray-800/90 backdrop-blur-md p-4 rounded-lg">
+      <div className="grid grid-cols-5 gap-2">
+        {Object.values(AIBot.emojiSets).flat().map((emoji, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              setText(text + emoji);
+              setShowEmojiPicker(false);
+            }}
+            className="text-2xl hover:bg-white/10 p-2 rounded"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* Uploaded Image */}
+  {uploadedImage && (
+    <Draggable>
+      <img
+        src={uploadedImage}
+        alt="Uploaded"
+        className="w-32 h-auto cursor-move"
+        style={{ position: 'absolute', top: 100, left: 100 }} // Adjust position as needed
+      />
+    </Draggable>
+  )}
+
+  {/* GIF Picker */}
+  {showGifPicker && (
+    <div className="absolute bottom-16 right-4 bg-gray-800/90 backdrop-blur-md p-4 rounded-lg w-72">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-white font-semibold">Select a GIF</h3>
+        <button onClick={() => setShowGifPicker(false)} className="text-gray-400 hover:text-white">
+          <XIcon size={18} />
+        </button>
+      </div>
+      <input
+        type="text"
+        placeholder="Search GIFs..."
+        value={gifSearchQuery}
+        onChange={(e) => {
+          setGifSearchQuery(e.target.value);
+          fetchGifs(e.target.value);
+        }}
+        className="w-full bg-gray-700/50 text-white rounded-lg px-3 py-2 mb-3"
+      />
+      <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+        {gifs.map((gif) => (
+          <img
+            key={gif.id}
+            src={gif.media_formats.tinygif.url}
+            alt={gif.content_description}
+            className="w-full h-auto rounded cursor-pointer hover:opacity-80"
+            onClick={() => handleGifSelect(gif.media_formats.gif.url)}
+          />
+        ))}
+      </div>
+    </div>
+  )}
+</div>
       </div>
     </div>
   );
